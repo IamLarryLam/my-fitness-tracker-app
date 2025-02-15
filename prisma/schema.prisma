@@ -1,0 +1,33 @@
+datasource db {
+  provider = "postgresql"
+  url      = env("DATABASE_URL")
+}
+
+generator client {
+  provider = "prisma-client-js"
+}
+
+model User {
+  id           Int           @id @default(autoincrement())
+  email        String        @unique
+  name         String?
+  workouts     Workout[]
+  workoutPlans WorkoutPlan[] // ✅ Add this missing relation
+}
+
+model Workout {
+  id        Int      @id @default(autoincrement())
+  date      DateTime @default(now())
+  duration  Int
+  intensity String
+  userId    Int
+  user      User     @relation(fields: [userId], references: [id])
+}
+
+model WorkoutPlan {
+  id        Int    @id @default(autoincrement())
+  name      String
+  exercises String // Stores exercises as JSON or a structured string
+  userId    Int
+  user      User   @relation(fields: [userId], references: [id]) // ✅ Relation is correct
+}
