@@ -3,112 +3,107 @@ import { prisma } from '@/lib/prisma'
 
 // GET /api/plans/[id]
 export async function GET(
-    request: Request,
+    req: Request,
     { params }: { params: { id: string } }
 ) {
     try {
         const plan = await prisma.plan.findUnique({
-            where: {
-                id: params.id,
-            },
+            where: { id: params.id },
             include: {
-                exercises: true,
-            },
+                exercises: {
+                    orderBy: [
+                        { order: 'asc' }
+                    ]
+                }
+            }
         })
 
         if (!plan) {
-            return NextResponse.json(
-                { success: false, error: 'Plan not found' },
-                { status: 404 }
+            return new NextResponse(
+                JSON.stringify({ message: 'Plan not found' }),
+                { status: 404, headers: { 'Content-Type': 'application/json' } }
             )
         }
 
-        return NextResponse.json({ success: true, data: plan })
+        return NextResponse.json(plan)
     } catch (error) {
-        console.error('Error fetching plan:', error)
-        return NextResponse.json(
-            { success: false, error: 'Failed to fetch plan' },
-            { status: 500 }
+        return new NextResponse(
+            JSON.stringify({ message: 'Error fetching plan' }),
+            { status: 500, headers: { 'Content-Type': 'application/json' } }
         )
     }
 }
 
 // PUT /api/plans/[id]
 export async function PUT(
-    request: Request,
+    req: Request,
     { params }: { params: { id: string } }
 ) {
     try {
-        const body = await request.json()
+        const body = await req.json()
+        const { name, description, type, duration, exercises } = body
 
-        // Validate required fields
-        if (!body.name || !body.type || !body.duration) {
-            return NextResponse.json(
-                { success: false, error: 'Missing required fields' },
-                { status: 400 }
-            )
-        }
+        // Use a transaction to ensure data consistency
+        const updatedPlan = await prisma.$transaction(async (tx) => {
+            // Delete existing exercises
+            await tx.exercise.deleteMany({
+                where: { planId: params.id }
+            })
 
-        const updatedPlan = await prisma.plan.update({
-            where: {
-                id: params.id,
-            },
-            data: {
-                name: body.name,
-                description: body.description,
-                type: body.type,
-                duration: Number(body.duration),
-                exercises: {
-                    deleteMany: {},  // Remove existing exercises
-                    create: body.exercises.map((exercise: any) => ({
-                        name: exercise.name,
-                        sets: exercise.sets ? Number(exercise.sets) : null,
-                        reps: exercise.reps ? Number(exercise.reps) : null,
-                        duration: exercise.duration ? Number(exercise.duration) : null,
-                    })),
+            // Update plan with new exercises
+            return tx.plan.update({
+                where: { id: params.id },
+                data: {
+                    name,
+                    description: description || null,
+                    type,
+                    duration,
+                    exercises: {
+                        create: exercises.map((exercise: any, index: number) => ({
+                            name: exercise.name,
+                            sets: exercise.sets || null,
+                            reps: exercise.reps || null,
+                            duration: exercise.duration || null,
+                            order: index
+                        }))
+                    }
                 },
-            },
-            include: {
-                exercises: true,
-            },
+                include: {
+                    exercises: {
+                        orderBy: [
+                            { order: 'asc' }
+                        ]
+                    }
+                }
+            })
         })
 
-        return NextResponse.json({ success: true, data: updatedPlan })
+        return NextResponse.json(updatedPlan)
     } catch (error) {
         console.error('Error updating plan:', error)
-        return NextResponse.json(
-            { success: false, error: 'Failed to update plan' },
-            { status: 500 }
+        return new NextResponse(
+            JSON.stringify({ message: 'Error updating plan', details: error }),
+            { status: 500, headers: { 'Content-Type': 'application/json' } }
         )
     }
 }
 
 // DELETE /api/plans/[id]
 export async function DELETE(
-    request: Request,
+    req: Request,
     { params }: { params: { id: string } }
 ) {
     try {
-        // First delete all exercises associated with the plan
-        await prisma.exercise.deleteMany({
-            where: {
-                planId: params.id,
-            },
-        })
-
-        // Then delete the plan
         await prisma.plan.delete({
-            where: {
-                id: params.id,
-            },
+            where: { id: params.id }
         })
 
-        return NextResponse.json({ success: true })
+        return new NextResponse(null, { status: 204 })
     } catch (error) {
         console.error('Error deleting plan:', error)
-        return NextResponse.json(
-            { success: false, error: 'Failed to delete plan' },
-            { status: 500 }
+        return new NextResponse(
+            JSON.stringify({ message: 'Error deleting plan' }),
+            { status: 500, headers: { 'Content-Type': 'application/json' } }
         )
     }
 } 

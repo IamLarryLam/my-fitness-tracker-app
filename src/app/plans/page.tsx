@@ -1,8 +1,9 @@
 'use client'
 
 import { motion } from 'framer-motion'
-import { useState } from 'react'
+import { useState, useEffect } from 'react'
 import { useRouter } from 'next/navigation'
+import { FiPlus, FiEdit2, FiTrash2, FiClock, FiList } from 'react-icons/fi'
 import styles from './plans.module.css'
 
 interface WorkoutPlan {
@@ -12,132 +13,153 @@ interface WorkoutPlan {
   type: 'strength' | 'cardio' | 'flexibility'
   duration: number
   exercises: Array<{
+    id: string
     name: string
     sets?: number
     reps?: number
     duration?: number
+    order: number
   }>
+  createdAt: Date
+  updatedAt: Date
 }
-
-const mockPlans: WorkoutPlan[] = [
-  {
-    id: '1',
-    name: 'Full Body Strength',
-    description: 'Complete full body workout targeting all major muscle groups',
-    type: 'strength',
-    duration: 60,
-    exercises: [
-      { name: 'Squats', sets: 3, reps: 12 },
-      { name: 'Bench Press', sets: 3, reps: 10 },
-      { name: 'Deadlifts', sets: 3, reps: 8 },
-      { name: 'Shoulder Press', sets: 3, reps: 10 },
-      { name: 'Bent Over Rows', sets: 3, reps: 12 },
-    ],
-  },
-  {
-    id: '2',
-    name: 'HIIT Cardio',
-    description: 'High-intensity interval training for maximum calorie burn',
-    type: 'cardio',
-    duration: 30,
-    exercises: [
-      { name: 'Burpees', duration: 45 },
-      { name: 'Mountain Climbers', duration: 45 },
-      { name: 'Jump Rope', duration: 60 },
-      { name: 'High Knees', duration: 45 },
-      { name: 'Box Jumps', duration: 45 },
-    ],
-  },
-  {
-    id: '3',
-    name: 'Core & Flexibility',
-    description: 'Focus on core strength and overall flexibility',
-    type: 'flexibility',
-    duration: 45,
-    exercises: [
-      { name: 'Plank Hold', duration: 60 },
-      { name: 'Russian Twists', sets: 3, reps: 20 },
-      { name: 'Leg Raises', sets: 3, reps: 15 },
-      { name: 'Yoga Flow Sequence', duration: 300 },
-      { name: 'Stretching Routine', duration: 300 },
-    ],
-  },
-  {
-    id: '4',
-    name: 'Upper Body Power',
-    description: 'Intensive upper body workout focusing on strength and muscle development',
-    type: 'strength',
-    duration: 50,
-    exercises: [
-      { name: 'Pull-ups', sets: 4, reps: 8 },
-      { name: 'Dips', sets: 4, reps: 10 },
-      { name: 'Incline Bench Press', sets: 3, reps: 12 },
-      { name: 'Lateral Raises', sets: 3, reps: 15 },
-      { name: 'Face Pulls', sets: 3, reps: 15 },
-      { name: 'Tricep Extensions', sets: 3, reps: 12 },
-    ],
-  },
-  {
-    id: '5',
-    name: 'Endurance Builder',
-    description: 'Long-duration cardio workout to improve stamina and endurance',
-    type: 'cardio',
-    duration: 75,
-    exercises: [
-      { name: 'Warm-up Jog', duration: 600 },
-      { name: 'Interval Running', duration: 1200 },
-      { name: 'Cycling', duration: 1200 },
-      { name: 'Stair Climber', duration: 900 },
-      { name: 'Cool-down Walk', duration: 600 },
-    ],
-  },
-]
 
 export default function WorkoutPlans() {
   const router = useRouter()
-  const [plans] = useState<WorkoutPlan[]>(mockPlans)
+  const [plans, setPlans] = useState<WorkoutPlan[]>([])
+  const [loading, setLoading] = useState(true)
+  const [planSort, setPlanSort] = useState<'name' | 'date'>('date')
+
+  useEffect(() => {
+    async function fetchPlans() {
+      try {
+        const response = await fetch('/api/plans')
+        if (!response.ok) throw new Error('Failed to fetch plans')
+        const data = await response.json()
+        setPlans(data)
+      } catch (error) {
+        console.error('Error:', error)
+      } finally {
+        setLoading(false)
+      }
+    }
+
+    fetchPlans()
+  }, [])
+
+  const sortedPlans = [...plans].sort((a, b) => {
+    if (planSort === 'name') {
+      return a.name.localeCompare(b.name)
+    }
+    return new Date(b.createdAt).getTime() - new Date(a.createdAt).getTime()
+  })
+
+  const handleDeletePlan = async (planId: string) => {
+    if (!confirm('Are you sure you want to delete this plan?')) return
+
+    try {
+      const response = await fetch(`/api/plans/${planId}`, {
+        method: 'DELETE',
+      })
+
+      if (!response.ok) {
+        throw new Error('Failed to delete plan')
+      }
+      
+      // Remove plan from state
+      setPlans(plans.filter(plan => plan.id !== planId))
+    } catch (error) {
+      console.error('Error deleting plan:', error)
+      // You could add a toast notification here
+    }
+  }
+
+  // Add edit handler
+  const handleEditPlan = (planId: string) => {
+    router.push(`/plans/${planId}/edit`)
+  }
+
+  if (loading) {
+    return (
+      <div className={styles.loadingContainer}>
+        <div className={styles.loadingSpinner}>Loading...</div>
+      </div>
+    )
+  }
 
   return (
     <div className={styles.container}>
       <header className={styles.header}>
         <div>
           <h1 className={styles.title}>Workout Plans</h1>
-          <p className={styles.subtitle}>Create and manage your workout routines</p>
+          <p className={styles.subtitle}>Browse and create workout routines</p>
         </div>
-        <motion.button
-          className={`${styles.newButton} glow-effect`}
-          onClick={() => router.push('/plans/create')}
-          whileHover={{ scale: 1.05 }}
-          whileTap={{ scale: 0.95 }}
-        >
-          Create New Plan
-        </motion.button>
+        <div className={styles.headerActions}>
+          <motion.button
+            className={styles.createButton}
+            onClick={() => router.push('/plans/create')}
+            whileHover={{ scale: 1.05 }}
+            whileTap={{ scale: 0.95 }}
+          >
+            <FiPlus size={20} />
+            <span>Create Plan</span>
+          </motion.button>
+        </div>
       </header>
 
       <div className={styles.planGrid}>
-        {plans.map((plan) => (
+        {sortedPlans.map((plan) => (
           <motion.div
             key={plan.id}
             className={styles.planCard}
+            onClick={() => router.push(`/plans/${plan.id}`)}
             initial={{ opacity: 0, y: 20 }}
             animate={{ opacity: 1, y: 0 }}
             whileHover={{ scale: 1.02 }}
           >
-            <h2>{plan.name}</h2>
+            <div className={styles.planHeader}>
+              <h2>{plan.name}</h2>
+              <div className={styles.planActions} onClick={e => e.stopPropagation()}>
+                <motion.button
+                  className={styles.iconButton}
+                  onClick={() => handleEditPlan(plan.id)}
+                  whileHover={{ scale: 1.1 }}
+                  whileTap={{ scale: 0.9 }}
+                >
+                  <FiEdit2 size={18} />
+                </motion.button>
+                <motion.button
+                  className={`${styles.iconButton} ${styles.deleteButton}`}
+                  onClick={() => handleDeletePlan(plan.id)}
+                  whileHover={{ scale: 1.1 }}
+                  whileTap={{ scale: 0.9 }}
+                >
+                  <FiTrash2 size={18} />
+                </motion.button>
+              </div>
+            </div>
             <p className={styles.planType}>{plan.type}</p>
             <p className={styles.planDescription}>{plan.description}</p>
             <div className={styles.planDetails}>
-              <span>{plan.duration} minutes</span>
-              <span>{plan.exercises.length} exercises</span>
+              <span>
+                <FiClock size={16} />
+                {plan.duration} minutes
+              </span>
+              <span>
+                <FiList size={16} />
+                {plan.exercises.length} exercises
+              </span>
             </div>
-            <div className={styles.planActions}>
-              <button onClick={() => router.push(`/plans/${plan.id}`)}>
-                View Details
-              </button>
-              <button onClick={() => router.push(`/workouts?planId=${plan.id}`)}>
-                Start Workout
-              </button>
-            </div>
+            <motion.button
+              className={styles.viewButton}
+              onClick={(e) => {
+                e.stopPropagation()
+                router.push(`/plans/${plan.id}`)
+              }}
+              whileHover={{ scale: 1.02 }}
+            >
+              View Details
+            </motion.button>
           </motion.div>
         ))}
       </div>
