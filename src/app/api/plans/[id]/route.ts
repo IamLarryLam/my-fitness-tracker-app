@@ -1,5 +1,24 @@
+/* eslint-disable @typescript-eslint/no-explicit-any */
+/* eslint-disable @typescript-eslint/no-unused-vars */
 import { NextResponse } from 'next/server'
 import { prisma } from '@/lib/prisma'
+import { Prisma } from '@prisma/client'
+
+interface ExerciseInput {
+    name: string
+    sets?: number | null
+    reps?: number | null
+    duration?: number | null
+    order: number
+}
+
+interface PlanInput {
+    name: string
+    description?: string | null
+    type: string
+    duration: number
+    exercises: ExerciseInput[]
+}
 
 // GET /api/plans/[id]
 export async function GET(
@@ -11,9 +30,9 @@ export async function GET(
             where: { id: params.id },
             include: {
                 exercises: {
-                    orderBy: [
-                        { order: 'asc' }
-                    ]
+                    orderBy: {
+                        order: 'asc'
+                    }
                 }
             }
         })
@@ -26,7 +45,8 @@ export async function GET(
         }
 
         return NextResponse.json(plan)
-    } catch (error) {
+    } catch (err) {
+        console.error('Error fetching plan:', err)
         return new NextResponse(
             JSON.stringify({ message: 'Error fetching plan' }),
             { status: 500, headers: { 'Content-Type': 'application/json' } }
@@ -40,7 +60,7 @@ export async function PUT(
     { params }: { params: { id: string } }
 ) {
     try {
-        const body = await req.json()
+        const body = await req.json() as PlanInput
         const { name, description, type, duration, exercises } = body
 
         // Use a transaction to ensure data consistency
@@ -59,7 +79,7 @@ export async function PUT(
                     type,
                     duration,
                     exercises: {
-                        create: exercises.map((exercise: any, index: number) => ({
+                        create: exercises.map((exercise, index) => ({
                             name: exercise.name,
                             sets: exercise.sets || null,
                             reps: exercise.reps || null,
@@ -70,19 +90,19 @@ export async function PUT(
                 },
                 include: {
                     exercises: {
-                        orderBy: [
-                            { order: 'asc' }
-                        ]
+                        orderBy: {
+                            order: 'asc'
+                        }
                     }
                 }
             })
         })
 
         return NextResponse.json(updatedPlan)
-    } catch (error) {
-        console.error('Error updating plan:', error)
+    } catch (err) {
+        console.error('Error updating plan:', err)
         return new NextResponse(
-            JSON.stringify({ message: 'Error updating plan', details: error }),
+            JSON.stringify({ message: 'Error updating plan', details: err }),
             { status: 500, headers: { 'Content-Type': 'application/json' } }
         )
     }
@@ -90,7 +110,7 @@ export async function PUT(
 
 // DELETE /api/plans/[id]
 export async function DELETE(
-    req: Request,
+    _req: Request,
     { params }: { params: { id: string } }
 ) {
     try {
@@ -99,8 +119,8 @@ export async function DELETE(
         })
 
         return new NextResponse(null, { status: 204 })
-    } catch (error) {
-        console.error('Error deleting plan:', error)
+    } catch (err) {
+        console.error('Error deleting plan:', err)
         return new NextResponse(
             JSON.stringify({ message: 'Error deleting plan' }),
             { status: 500, headers: { 'Content-Type': 'application/json' } }
