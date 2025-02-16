@@ -1,46 +1,64 @@
 'use client'
 
-import { motion } from 'framer-motion'
+import { motion, AnimatePresence } from 'framer-motion'
 import { useState } from 'react'
-import styles from './workouts.module.css'
 import { useRouter } from 'next/navigation'
+import styles from './workouts.module.css'
 
 type WorkoutType = 'strength' | 'cardio' | 'flexibility'
 
+interface Exercise {
+  name: string
+  sets: number
+  reps: number
+  weight: number
+}
+
 interface WorkoutForm {
   type: WorkoutType
-  plan: string
   duration: number
   intensity: number
   mood: number
   notes: string
-  exercises: {
-    name: string
-    sets: number
-    reps: number
-    weight: number
-  }[]
+  exercises: Exercise[]
+  planId?: string | null
+}
+
+interface ErrorMessage {
+  message: string
+  timestamp: number
 }
 
 const initialForm: WorkoutForm = {
   type: 'strength',
-  plan: '',
   duration: 30,
   intensity: 3,
   mood: 3,
   notes: '',
   exercises: [],
+  planId: null,
 }
 
 export default function WorkoutTracker() {
+  const router = useRouter()
   const [form, setForm] = useState<WorkoutForm>(initialForm)
-  const [currentExercise, setCurrentExercise] = useState({
+  const [currentExercise, setCurrentExercise] = useState<Exercise>({
     name: '',
     sets: 3,
     reps: 10,
     weight: 0,
   })
-  const router = useRouter()
+  const [isSubmitting, setIsSubmitting] = useState(false)
+  const [errors, setErrors] = useState<ErrorMessage[]>([])
+
+  const addError = (message: string) => {
+    const newError = { message, timestamp: Date.now() }
+    setErrors(prev => [...prev, newError])
+    // Remove error after 5 seconds
+    setTimeout(() => {
+      setErrors(prev => prev.filter(e => e.timestamp !== newError.timestamp))
+    }, 5000)
+  }
 
   const handleAddExercise = () => {
     if (currentExercise.name) {
@@ -54,28 +72,89 @@ export default function WorkoutTracker() {
 
   const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault()
+    setIsSubmitting(true)
+
     try {
+      // First ensure the temporary user exists
+      const setupResponse = await fetch('/api/setup')
+      if (!setupResponse.ok) {
+        throw new Error('Failed to setup temporary user')
+      }
+
+      if (form.exercises.length === 0) {
+        throw new Error('Please add at least one exercise')
+      }
+
+      const workoutData = {
+        type: form.type,
+        duration: Number(form.duration),
+        intensity: Number(form.intensity),
+        mood: Number(form.mood),
+        notes: form.notes,
+        userId: 'temp-user-id',
+        exercises: form.exercises.map(exercise => ({
+          name: exercise.name,
+          sets: Number(exercise.sets),
+          reps: Number(exercise.reps),
+          weight: Number(exercise.weight),
+        })),
+      }
+
+      console.log('Sending workout data:', workoutData)
+
       const response = await fetch('/api/workouts', {
         method: 'POST',
         headers: {
           'Content-Type': 'application/json',
         },
-        body: JSON.stringify({
-          ...form,
-          userId: 'user-id', // You'll need to implement authentication
-        }),
+        body: JSON.stringify(workoutData),
       })
-      
-      if (response.ok) {
+
+      if (!response.ok) {
+        const errorData = await response.json().catch(() => ({
+          error: 'Failed to parse error response'
+        }))
+        throw new Error(errorData.error || 'Failed to save workout')
+      }
+
+      const data = await response.json()
+      console.log('Success response:', data)
+
+      if (data.success) {
         router.push('/')
+      } else {
+        throw new Error('Failed to save workout')
       }
     } catch (error) {
       console.error('Error saving workout:', error)
+      addError(error instanceof Error ? error.message : 'Failed to save workout')
+    } finally {
+      setIsSubmitting(false)
     }
   }
 
   return (
     <div className={styles.container}>
+      <AnimatePresence>
+        {errors.map((error) => (
+          <motion.div
+            key={error.timestamp}
+            className={styles.errorToast}
+            initial={{ opacity: 0, y: -50 }}
+            animate={{ opacity: 1, y: 0 }}
+            exit={{ opacity: 0, y: -50 }}
+          >
+            <p>{error.message}</p>
+            <button
+              onClick={() => setErrors(prev => prev.filter(e => e.timestamp !== error.timestamp))}
+              className={styles.closeButton}
+            >
+              ×
+            </button>
+          </motion.div>
+        ))}
+      </AnimatePresence>
+
       <motion.div
         className={styles.content}
         initial={{ opacity: 0, y: 20 }}
@@ -105,40 +184,43 @@ export default function WorkoutTracker() {
             </div>
 
             <div className={styles.formGroup}>
-              <label>Workout Plan</label>
-              <select
-                value={form.plan}
-                onChange={e => setForm(prev => ({ ...prev, plan: e.target.value }))}
-              >
-                <option value="">Select a plan</option>
-                <option value="full-body">Full Body Strength</option>
-                <option value="hiit">HIIT Cardio</option>
-                <option value="upper-body">Upper Body Focus</option>
-                <option value="core">Core & Flexibility</option>
-              </select>
-            </div>
-
-            <div className={styles.formGroup}>
               <label>Duration (minutes)</label>
               <input
                 type="number"
                 value={form.duration}
                 onChange={e => setForm(prev => ({ ...prev, duration: Number(e.target.value) }))}
                 min="1"
+                required
               />
             </div>
 
             <div className={styles.formGroup}>
               <label>Intensity (1-5)</label>
               <div className={styles.ratingGroup}>
-                {[1, 2, 3, 4, 5].map((num) => (
+                {[1, 2, 3, 4, 5].map((value) => (
                   <button
-                    key={num}
+                    key={value}
                     type="button"
-                    className={`${styles.ratingButton} ${form.intensity === num ? styles.active : ''}`}
-                    onClick={() => setForm(prev => ({ ...prev, intensity: num }))}
+                    className={`${styles.ratingButton} ${form.intensity === value ? styles.active : ''}`}
+                    onClick={() => setForm(prev => ({ ...prev, intensity: value }))}
                   >
-                    {num}
+                    {value}
+                  </button>
+                ))}
+              </div>
+            </div>
+
+            <div className={styles.formGroup}>
+              <label>Mood (1-5)</label>
+              <div className={styles.ratingGroup}>
+                {[1, 2, 3, 4, 5].map((value) => (
+                  <button
+                    key={value}
+                    type="button"
+                    className={`${styles.ratingButton} ${form.mood === value ? styles.active : ''}`}
+                    onClick={() => setForm(prev => ({ ...prev, mood: value }))}
+                  >
+                    {value}
                   </button>
                 ))}
               </div>
@@ -213,8 +295,9 @@ export default function WorkoutTracker() {
             className={`${styles.submitButton} glow-effect`}
             whileHover={{ scale: 1.02 }}
             whileTap={{ scale: 0.98 }}
+            disabled={isSubmitting}
           >
-            Log Workout
+            {isSubmitting ? 'Saving...' : 'Log Workout'}
           </motion.button>
         </form>
       </motion.div>
