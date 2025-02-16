@@ -1,134 +1,344 @@
-import Image from "next/image";
+'use client'
 
-export default function Home() {
+import { motion } from 'framer-motion'
+import { LineChart, Line, XAxis, YAxis, CartesianGrid, Tooltip, ResponsiveContainer } from 'recharts'
+import { useRouter } from 'next/navigation'
+import Link from 'next/link'
+import styles from './landing.module.css'
+import { Canvas } from '@react-three/fiber'
+import { OrbitControls } from '@react-three/drei'
+import { useEffect, useState } from 'react'
+
+const mockData = [
+  { date: 'Mon', workouts: 3, duration: 45 },
+  { date: 'Tue', workouts: 2, duration: 60 },
+  { date: 'Wed', workouts: 4, duration: 50 },
+  { date: 'Thu', workouts: 1, duration: 30 },
+  { date: 'Fri', workouts: 3, duration: 55 },
+  { date: 'Sat', workouts: 5, duration: 75 },
+  { date: 'Sun', workouts: 2, duration: 40 },
+]
+
+function DumbbellModel() {
   return (
-    <div className="min-h-screen bg-gradient-to-b from-white to-gray-50">
-      {/* Hero Section */}
-      <header className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 pt-20 pb-16">
-        <div className="text-center">
-          <h1 className="text-4xl sm:text-5xl font-bold text-gray-900 tracking-tight">
-            Transform Your Workflow
-            <span className="block text-indigo-600">With Our Platform</span>
-          </h1>
-          <p className="mt-6 max-w-2xl mx-auto text-lg text-gray-500">
-            Streamline your business operations, boost productivity, and drive growth with our all-in-one solution.
-          </p>
-          <div className="mt-10 flex gap-4 justify-center">
-            <a
-              href="#"
-              className="px-8 py-3 rounded-lg bg-indigo-600 text-white font-medium hover:bg-indigo-700 transition-colors"
-            >
-              Get Started Free
-            </a>
-            <a
-              href="#"
-              className="px-8 py-3 rounded-lg border border-gray-300 text-gray-700 font-medium hover:border-gray-400 transition-colors"
-            >
-              Watch Demo
-            </a>
-          </div>
-        </div>
-      </header>
+    <mesh>
+      <cylinderGeometry args={[0.5, 0.5, 4, 32]} />
+      <meshStandardMaterial color="#3366ff" metalness={0.8} roughness={0.2} />
+      <pointLight position={[10, 10, 10]} intensity={1} />
+      <ambientLight intensity={0.5} />
+    </mesh>
+  )
+}
 
-      {/* Features Section */}
-      <section className="py-20 bg-white">
-        <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8">
-          <div className="text-center mb-16">
-            <h2 className="text-3xl font-bold text-gray-900">
-              Everything you need to succeed
-            </h2>
-            <p className="mt-4 text-gray-500">
-              Our platform provides all the tools you need in one place
-            </p>
-          </div>
-          
-          <div className="grid grid-cols-1 md:grid-cols-3 gap-8">
-            {[
-              {
-                title: "Easy Integration",
-                description: "Connect with your favorite tools seamlessly",
-                icon: "🔌",
-              },
-              {
-                title: "Real-time Analytics",
-                description: "Make data-driven decisions with powerful insights",
-                icon: "📊",
-              },
-              {
-                title: "24/7 Support",
-                description: "Our team is here to help you succeed",
-                icon: "🎯",
-              },
-            ].map((feature) => (
-              <div key={feature.title} className="p-6 rounded-xl border border-gray-100 hover:shadow-lg transition-shadow">
-                <div className="text-4xl mb-4">{feature.icon}</div>
-                <h3 className="text-xl font-semibold text-gray-900 mb-2">
-                  {feature.title}
-                </h3>
-                <p className="text-gray-500">{feature.description}</p>
-              </div>
-            ))}
-          </div>
-        </div>
-      </section>
+const features = [
+  {
+    icon: '📊',
+    title: 'Advanced Analytics',
+    description: 'Track your progress with interactive charts, weekly/monthly views, and detailed statistics.',
+  },
+  {
+    icon: '🎯',
+    title: 'Customizable Workout Plans',
+    description: 'Create, manage, and follow personalized workout plans with detailed exercise tracking.',
+  },
+  {
+    icon: '📱',
+    title: 'Intuitive Workout Logging',
+    description: 'Log workouts effortlessly with our modern interface, tracking sets, reps, and duration.',
+  },
+  {
+    icon: '🔥',
+    title: 'Performance Metrics',
+    description: 'Monitor calories burned, active minutes, and completion rates for every workout.',
+  },
+  {
+    icon: '📈',
+    title: 'Progress Visualization',
+    description: 'View your fitness journey through interactive line and bar charts with customizable views.',
+  },
+  {
+    icon: '🗂️',
+    title: 'Workout History',
+    description: 'Access your complete workout history and track long-term progress over time.',
+  },
+]
 
-      {/* CTA Section */}
-      <section className="py-20 bg-indigo-600">
-        <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 text-center">
-          <h2 className="text-3xl font-bold text-white mb-8">
-            Ready to get started?
-          </h2>
-          <a
-            href="#"
-            className="inline-block px-8 py-3 rounded-lg bg-white text-indigo-600 font-medium hover:bg-gray-100 transition-colors"
+// Add these variants for animations
+const containerVariants = {
+  hidden: { opacity: 0 },
+  visible: {
+    opacity: 1,
+    transition: {
+      staggerChildren: 0.1,
+      delayChildren: 0.3,
+    },
+  },
+}
+
+const itemVariants = {
+  hidden: { opacity: 0, y: 20 },
+  visible: { opacity: 1, y: 0 },
+}
+
+const scaleVariants = {
+  hover: { scale: 1.05, transition: { duration: 0.2 } },
+  tap: { scale: 0.95 },
+}
+
+// Add testimonials data
+const testimonials = [
+  {
+    quote: "FitTrack has completely transformed how I manage my workouts. The analytics are incredible!",
+    author: "Sarah J.",
+    role: "Fitness Enthusiast",
+    avatar: "/avatars/sarah.jpg"
+  },
+  {
+    quote: "The best fitness tracking app I've used. Clean interface and powerful features.",
+    author: "Mike R.",
+    role: "Personal Trainer",
+    avatar: "/avatars/mike.jpg"
+  },
+  {
+    quote: "Love how easy it is to track progress and stay motivated with the visual charts.",
+    author: "Emma L.",
+    role: "CrossFit Athlete",
+    avatar: "/avatars/emma.jpg"
+  }
+]
+
+export default function LandingPage() {
+  const router = useRouter()
+  const [mounted, setMounted] = useState(false)
+
+  useEffect(() => {
+    setMounted(true)
+  }, [])
+
+  return (
+    <div className={styles.landing}>
+      <section className={styles.hero}>
+        <motion.div
+          className={styles.heroContent}
+          variants={containerVariants}
+          initial="hidden"
+          animate="visible"
+        >
+          <motion.h1
+            className={styles.title}
+            variants={itemVariants}
           >
-            Start Your Free Trial
-          </a>
+            Transform Your Fitness Journey with{' '}
+            <motion.span
+              className={styles.gradient}
+              animate={{
+                backgroundPosition: ['0% 50%', '100% 50%', '0% 50%'],
+              }}
+              transition={{
+                duration: 10,
+                repeat: Infinity,
+                ease: 'linear',
+              }}
+              style={{ backgroundSize: '200% 100%' }}
+            >
+              FitTrack
+            </motion.span>
+          </motion.h1>
+          <motion.p
+            className={styles.subtitle}
+            variants={itemVariants}
+          >
+            A modern fitness tracking platform with advanced analytics, customizable workout plans,
+            and detailed progress monitoring.
+          </motion.p>
+          <motion.div
+            className={styles.cta}
+            variants={itemVariants}
+          >
+            <motion.div
+              variants={scaleVariants}
+              whileHover="hover"
+              whileTap="tap"
+            >
+              <Link href="/dashboard" className={`${styles.ctaButton} glow-effect`}>
+                Start Your Journey
+              </Link>
+            </motion.div>
+          </motion.div>
+        </motion.div>
+        <motion.div
+          className={styles.heroVisual}
+          initial={{ opacity: 0, x: 100 }}
+          animate={{ opacity: 1, x: 0 }}
+          transition={{ duration: 0.8, delay: 0.5 }}
+        >
+          <motion.div
+            className={styles.statsPreview}
+            whileHover={{ scale: 1.02 }}
+            transition={{ duration: 0.3 }}
+          >
+            <img
+              src="/dashboard-preview.png"
+              alt="FitTrack Dashboard"
+              className={styles.previewImage}
+            />
+          </motion.div>
+        </motion.div>
+      </section>
+
+      <motion.section
+        className={styles.features}
+        initial={{ opacity: 0 }}
+        whileInView={{ opacity: 1 }}
+        viewport={{ once: true, margin: "-100px" }}
+      >
+        <motion.h2
+          className={styles.sectionTitle}
+          initial={{ opacity: 0, y: 20 }}
+          whileInView={{ opacity: 1, y: 0 }}
+          viewport={{ once: true }}
+        >
+          Powerful Features for Your Fitness Goals
+        </motion.h2>
+        <div className={styles.featureGrid}>
+          {features.map((feature, index) => (
+            <motion.div
+              key={feature.title}
+              className={styles.featureCard}
+              initial={{ opacity: 0, y: 20 }}
+              whileInView={{ opacity: 1, y: 0 }}
+              viewport={{ once: true }}
+              transition={{ delay: index * 0.1 }}
+              whileHover={{
+                scale: 1.05,
+                boxShadow: "0 8px 30px rgba(0,0,0,0.12)",
+              }}
+            >
+              <motion.div
+                className={styles.featureIcon}
+                animate={{
+                  scale: [1, 1.2, 1],
+                  rotate: [0, 10, -10, 0],
+                }}
+                transition={{
+                  duration: 2,
+                  repeat: Infinity,
+                  repeatDelay: 3,
+                }}
+              >
+                {feature.icon}
+              </motion.div>
+              <h3>{feature.title}</h3>
+              <p>{feature.description}</p>
+            </motion.div>
+          ))}
+        </div>
+      </motion.section>
+
+      <section className={styles.metrics}>
+        <div className={styles.metricsContent}>
+          <motion.div
+            className={styles.metricsGrid}
+            initial={{ opacity: 0, y: 20 }}
+            whileInView={{ opacity: 1, y: 0 }}
+            viewport={{ once: true }}
+          >
+            <div className={styles.metricCard}>
+              <h3>10K+</h3>
+              <p>Active Users</p>
+            </div>
+            <div className={styles.metricCard}>
+              <h3>500K+</h3>
+              <p>Workouts Tracked</p>
+            </div>
+            <div className={styles.metricCard}>
+              <h3>98%</h3>
+              <p>User Satisfaction</p>
+            </div>
+            <div className={styles.metricCard}>
+              <h3>24/7</h3>
+              <p>Support</p>
+            </div>
+          </motion.div>
         </div>
       </section>
 
-      {/* Footer */}
-      <footer className="bg-gray-900 text-gray-400 py-12">
-        <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8">
-          <div className="grid grid-cols-2 md:grid-cols-4 gap-8">
-            <div>
-              <h4 className="text-white font-semibold mb-4">Product</h4>
-              <ul className="space-y-2">
-                <li><a href="#" className="hover:text-white transition-colors">Features</a></li>
-                <li><a href="#" className="hover:text-white transition-colors">Pricing</a></li>
-                <li><a href="#" className="hover:text-white transition-colors">Security</a></li>
-              </ul>
+      <section className={styles.testimonials}>
+        <h2 className={styles.sectionTitle}>Loved by Fitness Enthusiasts</h2>
+        <div className={styles.testimonialGrid}>
+          {testimonials.map((testimonial, index) => (
+            <motion.div
+              key={testimonial.author}
+              className={styles.testimonialCard}
+              initial={{ opacity: 0, y: 20 }}
+              whileInView={{ opacity: 1, y: 0 }}
+              viewport={{ once: true }}
+              transition={{ delay: index * 0.1 }}
+            >
+              <div className={styles.testimonialContent}>
+                <p>"{testimonial.quote}"</p>
+                <div className={styles.testimonialAuthor}>
+                  <img src={testimonial.avatar} alt={testimonial.author} />
+                  <div>
+                    <h4>{testimonial.author}</h4>
+                    <p>{testimonial.role}</p>
+                  </div>
+                </div>
+              </div>
+            </motion.div>
+          ))}
+        </div>
+      </section>
+
+      <section className={styles.cta}>
+        <motion.div
+          className={styles.ctaContent}
+          initial={{ opacity: 0, y: 20 }}
+          whileInView={{ opacity: 1, y: 0 }}
+          viewport={{ once: true }}
+        >
+          <h2>Ready to Transform Your Fitness Journey?</h2>
+          <p>
+            Join FitTrack today and experience a modern approach to fitness tracking
+            and workout management.
+          </p>
+          <Link href="/dashboard" className={`${styles.ctaButton} glow-effect`}>
+            Get Started Now
+          </Link>
+        </motion.div>
+      </section>
+
+      <footer className={styles.footer}>
+        <div className={styles.footerContent}>
+          <div className={styles.footerBrand}>
+            <span className={styles.footerLogo}>FitTrack</span>
+            <p>Your modern fitness companion</p>
+          </div>
+          <div className={styles.footerLinks}>
+            <div className={styles.linkGroup}>
+              <h4>Product</h4>
+              <Link href="/dashboard">Dashboard</Link>
+              <Link href="/workouts">Workouts</Link>
+              <Link href="/plans">Plans</Link>
             </div>
-            <div>
-              <h4 className="text-white font-semibold mb-4">Company</h4>
-              <ul className="space-y-2">
-                <li><a href="#" className="hover:text-white transition-colors">About</a></li>
-                <li><a href="#" className="hover:text-white transition-colors">Blog</a></li>
-                <li><a href="#" className="hover:text-white transition-colors">Careers</a></li>
-              </ul>
+            <div className={styles.linkGroup}>
+              <h4>Company</h4>
+              <Link href="/about">About</Link>
+              <Link href="/privacy">Privacy</Link>
+              <Link href="/terms">Terms</Link>
             </div>
-            <div>
-              <h4 className="text-white font-semibold mb-4">Resources</h4>
-              <ul className="space-y-2">
-                <li><a href="#" className="hover:text-white transition-colors">Documentation</a></li>
-                <li><a href="#" className="hover:text-white transition-colors">Help Center</a></li>
-                <li><a href="#" className="hover:text-white transition-colors">Contact</a></li>
-              </ul>
-            </div>
-            <div>
-              <h4 className="text-white font-semibold mb-4">Legal</h4>
-              <ul className="space-y-2">
-                <li><a href="#" className="hover:text-white transition-colors">Privacy</a></li>
-                <li><a href="#" className="hover:text-white transition-colors">Terms</a></li>
-                <li><a href="#" className="hover:text-white transition-colors">Cookie Policy</a></li>
-              </ul>
+            <div className={styles.linkGroup}>
+              <h4>Connect</h4>
+              <a href="https://twitter.com" target="_blank" rel="noopener noreferrer">Twitter</a>
+              <a href="https://github.com" target="_blank" rel="noopener noreferrer">GitHub</a>
+              <a href="mailto:support@fittrack.com">Contact</a>
             </div>
           </div>
-          <div className="mt-12 pt-8 border-t border-gray-800 text-center">
-            <p>&copy; 2024 Your Company. All rights reserved.</p>
-          </div>
+        </div>
+        <div className={styles.footerBottom}>
+          <p>&copy; 2024 FitTrack. All rights reserved.</p>
         </div>
       </footer>
     </div>
-  );
+  )
 }

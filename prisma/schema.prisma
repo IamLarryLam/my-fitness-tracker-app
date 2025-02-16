@@ -8,26 +8,57 @@ generator client {
 }
 
 model User {
-  id           Int           @id @default(autoincrement())
-  email        String        @unique
-  name         String?
-  workouts     Workout[]
-  workoutPlans WorkoutPlan[] // ✅ Add this missing relation
+  id        String    @id @default(cuid())
+  email     String    @unique
+  name      String?
+  workouts  Workout[]
+  plans     Plan[]
+  createdAt DateTime  @default(now())
+  updatedAt DateTime  @updatedAt
 }
 
 model Workout {
-  id        Int      @id @default(autoincrement())
-  date      DateTime @default(now())
-  duration  Int
-  intensity String
-  userId    Int
-  user      User     @relation(fields: [userId], references: [id])
+  id        String    @id @default(cuid())
+  date      DateTime  @default(now())
+  type      String    // 'strength' | 'cardio' | 'flexibility'
+  duration  Int       // in minutes
+  intensity Int       // 1-5
+  mood      Int       // 1-5
+  notes     String?
+  exercises Exercise[]
+  plan      Plan?     @relation(fields: [planId], references: [id])
+  planId    String?
+  user      User      @relation(fields: [userId], references: [id])
+  userId    String
+  createdAt DateTime  @default(now())
+  updatedAt DateTime  @updatedAt
 }
 
-model WorkoutPlan {
-  id        Int    @id @default(autoincrement())
+model Plan {
+  id          String    @id @default(cuid())
+  name        String
+  description String?
+  type        String    // 'strength' | 'cardio' | 'flexibility'
+  duration    Int       // in minutes
+  exercises   Exercise[]
+  workouts    Workout[]
+  user        User      @relation(fields: [userId], references: [id])
+  userId      String
+  createdAt   DateTime  @default(now())
+  updatedAt   DateTime  @updatedAt
+}
+
+model Exercise {
+  id        String    @id @default(cuid())
   name      String
-  exercises String // Stores exercises as JSON or a structured string
-  userId    Int
-  user      User   @relation(fields: [userId], references: [id]) // ✅ Relation is correct
+  sets      Int?
+  reps      Int?
+  weight    Float?
+  restTime  Int?      // in seconds
+  workout   Workout?  @relation(fields: [workoutId], references: [id])
+  workoutId String?
+  plan      Plan?     @relation(fields: [planId], references: [id])
+  planId    String?
+  createdAt DateTime  @default(now())
+  updatedAt DateTime  @updatedAt
 }
