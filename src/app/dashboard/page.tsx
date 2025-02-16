@@ -2,85 +2,40 @@
 
 import { motion } from 'framer-motion'
 import { LineChart, Line, XAxis, YAxis, CartesianGrid, Tooltip, ResponsiveContainer } from 'recharts'
-import { useRouter } from 'next/navigation'
-import { useEffect, useState } from 'react'
 import styles from './dashboard.module.css'
 
-interface WorkoutStats {
-  totalWorkouts: number
-  activeMinutes: number
-  caloriesBurned: number
-  completionRate: number
-}
+const mockData = [
+  { date: 'Mon', workouts: 3, duration: 45 },
+  { date: 'Tue', workouts: 2, duration: 60 },
+  { date: 'Wed', workouts: 4, duration: 50 },
+  { date: 'Thu', workouts: 1, duration: 30 },
+  { date: 'Fri', workouts: 3, duration: 55 },
+  { date: 'Sat', workouts: 5, duration: 75 },
+  { date: 'Sun', workouts: 2, duration: 40 },
+]
 
-export default function Home() {
-  const router = useRouter()
-  const [workouts, setWorkouts] = useState([])
-  const [stats, setStats] = useState<WorkoutStats>({
-    totalWorkouts: 0,
-    activeMinutes: 0,
-    caloriesBurned: 0,
-    completionRate: 0,
-  })
+const workoutPlans = [
+  { name: 'Full Body Strength', lastUsed: '2 days ago', frequency: 12 },
+  { name: 'HIIT Cardio', lastUsed: '1 day ago', frequency: 8 },
+  { name: 'Upper Body Focus', lastUsed: '5 days ago', frequency: 6 },
+  { name: 'Core & Flexibility', lastUsed: 'Today', frequency: 4 },
+]
 
-  useEffect(() => {
-    fetchWorkouts()
-  }, [])
-
-  const fetchWorkouts = async () => {
-    try {
-      const response = await fetch('/api/workouts')
-      const data = await response.json()
-      setWorkouts(data)
-      calculateStats(data)
-    } catch (error) {
-      console.error('Error fetching workouts:', error)
-    }
-  }
-
-  const calculateStats = (workoutData: any[]) => {
-    const total = workoutData.length
-    const minutes = workoutData.reduce((acc, w) => acc + w.duration, 0)
-    // You would need to implement proper calorie calculation based on workout type and intensity
-    const calories = workoutData.reduce((acc, w) => acc + (w.duration * w.intensity * 10), 0)
-    const completed = workoutData.filter(w => w.exercises.length > 0).length
-    const rate = total > 0 ? (completed / total) * 100 : 0
-
-    setStats({
-      totalWorkouts: total,
-      activeMinutes: minutes,
-      caloriesBurned: calories,
-      completionRate: Math.round(rate),
-    })
-  }
-
-  const handleNewWorkout = () => {
-    router.push('/workouts')
-  }
-
+export default function Dashboard() {
   return (
-    <main className={styles.container}>
+    <div className={styles.container}>
       <header className={styles.header}>
         <div>
           <h1 className={styles.title}>Dashboard</h1>
           <p className={styles.subtitle}>Welcome back! Here's your fitness overview</p>
         </div>
-        <div className={styles.headerActions}>
-          <motion.a
-            href="/landing"
-            className={styles.landingLink}
-          >
-            View Landing Page
-          </motion.a>
-          <motion.button
-            className={`${styles.newWorkoutBtn} glow-effect`}
-            whileHover={{ scale: 1.05 }}
-            whileTap={{ scale: 0.95 }}
-            onClick={handleNewWorkout}
-          >
-            New Workout
-          </motion.button>
-        </div>
+        <motion.button
+          className={`${styles.newWorkoutBtn} glow-effect`}
+          whileHover={{ scale: 1.05 }}
+          whileTap={{ scale: 0.95 }}
+        >
+          New Workout
+        </motion.button>
       </header>
 
       <div className={styles.statsGrid}>
@@ -107,7 +62,7 @@ export default function Home() {
         <h2 className={styles.sectionTitle}>Weekly Activity</h2>
         <div className={styles.chart}>
           <ResponsiveContainer width="100%" height={300}>
-            <LineChart data={workouts}>
+            <LineChart data={mockData}>
               <CartesianGrid strokeDasharray="3 3" stroke="rgba(255,255,255,0.1)" />
               <XAxis dataKey="date" stroke="var(--text-secondary)" />
               <YAxis stroke="var(--text-secondary)" />
@@ -136,6 +91,26 @@ export default function Home() {
           </ResponsiveContainer>
         </div>
       </div>
-    </main>
+
+      <div className={styles.workoutPlans}>
+        <div className={styles.plansHeader}>
+          <h2 className={styles.sectionTitle}>Workout Plans</h2>
+          <button className={styles.viewAllBtn}>View All</button>
+        </div>
+        <div className={styles.plansGrid}>
+          {workoutPlans.map((plan) => (
+            <motion.div
+              key={plan.name}
+              className={styles.planCard}
+              whileHover={{ scale: 1.02 }}
+            >
+              <h3 className={styles.planName}>{plan.name}</h3>
+              <p className={styles.planMeta}>Last used: {plan.lastUsed}</p>
+              <p className={styles.planFreq}>Used {plan.frequency} times</p>
+            </motion.div>
+          ))}
+        </div>
+      </div>
+    </div>
   )
-}
+} 
