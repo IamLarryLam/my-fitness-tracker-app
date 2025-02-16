@@ -27,9 +27,9 @@ export async function GET() {
         const plans = await prisma.plan.findMany({
             include: {
                 exercises: {
-                    orderBy: {
-                        order: 'asc'
-                    }
+                    orderBy: [
+                        { order: 'asc' as Prisma.SortOrder }
+                    ]
                 }
             }
         })
@@ -56,7 +56,7 @@ export async function POST(req: Request) {
                 type,
                 duration,
                 exercises: {
-                    create: exercises.map((exercise, index) => ({
+                    create: exercises.map((exercise: any, index: number) => ({
                         name: exercise.name,
                         sets: exercise.sets || null,
                         reps: exercise.reps || null,
@@ -64,12 +64,12 @@ export async function POST(req: Request) {
                         order: index
                     }))
                 }
-            },
+            } as Prisma.PlanCreateInput,
             include: {
                 exercises: {
-                    orderBy: {
-                        order: 'asc'
-                    }
+                    orderBy: [
+                        { order: 'asc' as Prisma.SortOrder }
+                    ]
                 }
             }
         })

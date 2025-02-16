@@ -30,9 +30,9 @@ export async function GET(
             where: { id: params.id },
             include: {
                 exercises: {
-                    orderBy: {
-                        order: 'asc'
-                    }
+                    orderBy: [
+                        { order: 'asc' as Prisma.SortOrder }
+                    ]
                 }
             }
         })
@@ -79,7 +79,7 @@ export async function PUT(
                     type,
                     duration,
                     exercises: {
-                        create: exercises.map((exercise, index) => ({
+                        create: exercises.map((exercise: any, index: number) => ({
                             name: exercise.name,
                             sets: exercise.sets || null,
                             reps: exercise.reps || null,
@@ -87,12 +87,12 @@ export async function PUT(
                             order: index
                         }))
                     }
-                },
+                } as Prisma.PlanUpdateInput,
                 include: {
                     exercises: {
-                        orderBy: {
-                            order: 'asc'
-                        }
+                        orderBy: [
+                            { order: 'asc' as Prisma.SortOrder }
+                        ]
                     }
                 }
             })
